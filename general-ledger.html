@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>General Ledger | Demo ERP</title>
+  <link rel="icon" type="image/svg+xml" href="vite.svg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/pdf.js"></script>
+  <script>
+    requireAuth();
+
+    var bodyHtml =
+      '<div class="ledger-page">' +
+      '  <div class="page-header" style="margin-bottom:2rem">' +
+      '    <div class="d-flex align-items-center gap-3">' +
+      '      <div class="header-icon" data-icon="generalLedger"></div>' +
+      '      <h2>General Ledger</h2>' +
+      '    </div>' +
+      '    <div class="header-actions d-flex align-items-center gap-3">' +
+      '      <div class="d-flex align-items-center gap-2">' +
+      '        <span class="text-muted-c" data-icon="search"></span>' +
+      '        <select id="glAccountFilter" class="form-control" style="width:auto;border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem">' +
+      '          <option value="all">All Accounts</option>' +
+      '          <option value="1301">1301 - Vendor Advances</option>' +
+      '          <option value="2201">2201 - Customer Advances</option>' +
+      '          <option value="1201">1201 - Inventory</option>' +
+      '          <option value="5001">5001 - Purchases</option>' +
+      '          <option value="4001">4001 - Sales Revenue</option>' +
+      '          <option value="2101">2101 - Accounts Payable</option>' +
+      '          <option value="1101">1101 - Accounts Receivable</option>' +
+      '          <option value="1002">1002 - Bank</option>' +
+      '          <option value="1001">1001 - Cash</option>' +
+      '        </select>' +
+      '      </div>' +
+      '      <button class="btn btn-secondary" data-icon="download" onclick="downloadGLPDF()"><span>Download PDF</span></button>' +
+      '    </div>' +
+      '  </div>' +
+
+      '  <div class="ledger-summary">' +
+      '    <div class="summary-card">' +
+      '      <span class="label">Invoice Amount</span>' +
+      '      <span class="value info" id="glInvoiceAmt">Rs. 0.00</span>' +
+      '    </div>' +
+      '    <div class="summary-card">' +
+      '      <span class="label">Payment Received</span>' +
+      '      <span class="value credit" id="glPaymentRcvd">Rs. 0.00</span>' +
+      '    </div>' +
+      '    <div class="summary-card">' +
+      '      <span class="label">Total Debit</span>' +
+      '      <span class="value debit" id="glTotalDebit">Rs. 0.00</span>' +
+      '    </div>' +
+      '    <div class="summary-card">' +
+      '      <span class="label">Total Credit</span>' +
+      '      <span class="value credit" id="glTotalCredit">Rs. 0.00</span>' +
+      '    </div>' +
+      '    <div class="summary-card">' +
+      '      <span class="label">Net Balance (C/F)</span>' +
+      '      <span class="value balance" id="glNetBalance">Rs. 0.00</span>' +
+      '    </div>' +
+      '  </div>' +
+
+      '  <div class="summary-table-container">' +
+      '    <table class="summary-table">' +
+      '      <thead>' +
+      '        <tr><th>Date</th><th>Reference</th><th>Particulars</th><th>Account</th><th>Debit</th><th>Credit</th><th>Balance</th></tr>' +
+      '      </thead>' +
+      '      <tbody id="glBody">' +
+      '        <tr class="empty-message"><td colspan="7" class="text-center">No ledger entries found. Transactions from Cash Book or Invoices will appear here automatically.</td></tr>' +
+      '      </tbody>' +
+      '    </table>' +
+      '  </div>' +
+      '</div>';
+
+    renderLayoutWith({ title: 'General Ledger', subtitle: 'Manage your project dashboard and performance', active: 'general-ledger' }, bodyHtml);
+
+    // Auto-populate from invoices + cash book entries
+    function buildGeneralLedger() {
+      var entries = [];
+      var invoices = [];
+      var cashEntries = [];
+      try { invoices = JSON.parse(localStorage.getItem('erp_invoices')) || []; } catch (e) {}
+      try { cashEntries = JSON.parse(localStorage.getItem('erp_entries')) || []; } catch (e) {}
+
+      invoices.forEach(function (inv) {
+        entries.push({
+          date: inv.date,
+          ref: inv.number,
+          particulars: inv.type === 'receivable' ? 'Invoice to ' + inv.party : 'Bill from ' + inv.party,
+          account: inv.type === 'receivable' ? '1101 - Accounts Receivable' : '2101 - Accounts Payable',
+          debit: inv.type === 'receivable' ? inv.total : 0,
+          credit: inv.type === 'payable' ? inv.total : 0,
+          amount: inv.total
+        });
+        if (inv.paid > 0) {
+          entries.push({
+            date: inv.date,
+            ref: inv.number,
+            particulars: inv.type === 'receivable' ? 'Payment received from ' + inv.party : 'Payment made to ' + inv.party,
+            account: '1001 - Cash',
+            debit: inv.type === 'payable' ? inv.paid : 0,
+            credit: inv.type === 'receivable' ? inv.paid : 0,
+            amount: inv.paid
+          });
+        }
+      });
+      cashEntries.forEach(function (en) {
+        entries.push({
+          date: en.date,
+          ref: en.ref || 'CASH-' + en.date,
+          particulars: (en.desc || en.type) + (en.party ? ' - ' + en.party : ''),
+          account: en.mode === 'online' ? '1002 - Bank' : '1001 - Cash',
+          debit: en.type === 'receipt' ? en.amount : 0,
+          credit: en.type === 'payment' ? en.amount : 0,
+          amount: en.amount
+        });
+      });
+
+      entries.sort(function (a, b) { return a.date.localeCompare(b.date); });
+      return entries;
+    }
+
+    function renderGL() {
+      var entries = buildGeneralLedger();
+      var tbody = document.getElementById('glBody');
+      if (!tbody) return;
+
+      var totalInvoice = 0, totalPayment = 0, totalDebit = 0, totalCredit = 0;
+      entries.forEach(function (e) {
+        totalDebit += e.debit;
+        totalCredit += e.credit;
+      });
+      totalInvoice = totalDebit;
+      totalPayment = totalCredit;
+
+      document.getElementById('glInvoiceAmt').textContent = formatMoney(totalInvoice);
+      document.getElementById('glPaymentRcvd').textContent = formatMoney(totalPayment);
+      document.getElementById('glTotalDebit').textContent = formatMoney(totalDebit);
+      document.getElementById('glTotalCredit').textContent = formatMoney(totalCredit);
+      document.getElementById('glNetBalance').textContent = formatMoney(totalDebit - totalCredit);
+
+      if (entries.length === 0) {
+        tbody.innerHTML = '<tr class="empty-message"><td colspan="7" class="text-center">No ledger entries found. Transactions from Cash Book or Invoices will appear here automatically.</td></tr>';
+        return;
+      }
+      var balance = 0;
+      var html = '';
+      entries.forEach(function (e) {
+        balance += e.debit - e.credit;
+        html += '<tr>' +
+          '<td>' + e.date + '</td>' +
+          '<td><a href="#" class="invoice-link">' + e.ref + '</a></td>' +
+          '<td>' + e.particulars + '</td>' +
+          '<td>' + e.account + '</td>' +
+          '<td class="amount-debit">' + (e.debit ? formatMoney(e.debit) : '') + '</td>' +
+          '<td class="amount-credit">' + (e.credit ? formatMoney(e.credit) : '') + '</td>' +
+          '<td class="amount-balance">' + formatMoney(balance) + '</td>' +
+          '</tr>';
+      });
+      tbody.innerHTML = html;
+    }
+
+    document.getElementById('glAccountFilter').addEventListener('change', renderGL);
+    renderGL();
+
+    window.downloadGLPDF = function () {
+      var entries = buildGeneralLedger();
+      if (!entries.length) { showToast('No ledger entries to export yet.', 'info'); return; }
+      var rows = '';
+      var balance = 0;
+      entries.forEach(function (e) {
+        balance += e.debit - e.credit;
+        rows += '<tr>' +
+          '<td>' + e.date + '</td>' +
+          '<td>' + e.ref + '</td>' +
+          '<td>' + e.particulars + '</td>' +
+          '<td>' + e.account + '</td>' +
+          '<td>' + (e.debit ? formatMoney(e.debit) : '') + '</td>' +
+          '<td>' + (e.credit ? formatMoney(e.credit) : '') + '</td>' +
+          '<td>' + formatMoney(balance) + '</td>' +
+          '</tr>';
+      });
+      var table = '<table><thead><tr><th>Date</th><th>Ref</th><th>Particulars</th><th>Account</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead><tbody>' + rows + '</tbody></table>';
+      printReport('General Ledger', table, []);
+    };
+  </script>
+</body>
+</html>

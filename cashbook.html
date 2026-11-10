@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cash Book | Demo ERP</title>
+  <link rel="icon" type="image/svg+xml" href="vite.svg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/pdf.js"></script>
+  <script>
+    requireAuth();
+
+    var bodyHtml =
+      '<div class="cashbook-page">' +
+      '  <div class="page-header">' +
+      '    <h2>Cash Book</h2>' +
+      '    <div class="header-actions">' +
+      '      <button class="btn btn-secondary" data-icon="bank" onclick="openModal(\'bankModal\')"><span>Manage Banks</span></button>' +
+      '      <button class="btn btn-secondary" data-icon="download" onclick="downloadCashBookPDF()"><span>Download PDF</span></button>' +
+      '      <button class="btn btn-primary" data-icon="plus" onclick="openModal(\'entryModal\')"><span>Add Entry</span></button>' +
+      '    </div>' +
+      '  </div>' +
+      '  <div class="cash-summary">' +
+      '    <div class="summary-box">' +
+      '      <div class="icon-wrapper cash" data-icon="cash"></div>' +
+      '      <div><p>Cash In Hand</p><h3 id="cashInHand">Rs. 0.00</h3></div>' +
+      '    </div>' +
+      '    <div class="summary-box">' +
+      '      <div class="icon-wrapper net" data-icon="wallet"></div>' +
+      '      <div><p>Total Net Balance</p><h3 id="netBalance">Rs. 0.00</h3></div>' +
+      '    </div>' +
+      '  </div>' +
+      '  <div class="table-container">' +
+      '    <table class="data-table cashbook-table">' +
+      '      <thead>' +
+      '        <tr><th>Date</th><th>Party</th><th>Description</th><th>Mode</th><th>Bank</th><th>Reference</th><th>Receipt</th><th>Payment</th><th>Balance</th><th>Actions</th></tr>' +
+      '      </thead>' +
+      '      <tbody id="entriesBody">' +
+      '        <tr><td colspan="10" class="empty-message text-center">No cash entries yet. Click "Add Entry" to record a transaction.</td></tr>' +
+      '      </tbody>' +
+      '    </table>' +
+      '  </div>' +
+      '</div>' +
+
+      '<!-- Add Entry Modal (matches original) -->' +
+      '<div class="modal-overlay" id="entryModal">' +
+      '  <div class="modal large">' +
+      '    <div class="modal-header">' +
+      '      <h3>Add Cash Entry</h3>' +
+      '      <button class="close-btn" onclick="closeModal(\'entryModal\')">&times;</button>' +
+      '    </div>' +
+      '    <form onsubmit="saveEntry(event)">' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Date *</label><input type="date" id="entryDate"></div>' +
+      '        <div class="form-group" style="justify-content:flex-end">' +
+      '          <label class="advance-toggle" style="width:fit-content;display:flex;align-items:center;gap:8px;font-size:.8125rem;color:#4f46e5;background:#4f46e51a;padding:4px 10px;border-radius:20px;cursor:pointer">' +
+      '            <input type="checkbox" id="entrySplit" onchange="onSplitChange()"> Split Payment (Cash + Online/Cheque)' +
+      '          </label>' +
+      '        </div>' +
+      '      </div>' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Type *</label>' +
+      '          <select id="entryType">' +
+      '            <option value="receipt">Receipt (In)</option>' +
+      '            <option value="payment">Payment (Out)</option>' +
+      '          </select>' +
+      '        </div>' +
+      '        <div class="form-group"><label>Mode *</label>' +
+      '          <select id="entryMode" onchange="onModeChange()">' +
+      '            <option value="cash">Cash</option>' +
+      '            <option value="online">Online / Bank</option>' +
+      '            <option value="cheque">Cheque</option>' +
+      '          </select>' +
+      '        </div>' +
+      '      </div>' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Customer (Optional)</label>' +
+      '          <div class="input-with-icon">' +
+      '            <span class="input-icon" data-icon="customers"></span>' +
+      '            <select id="entryCustomer"><option value="">Select Customer</option></select>' +
+      '          </div>' +
+      '        </div>' +
+      '        <div class="form-group"><label>Vendor (Optional)</label>' +
+      '          <div class="input-with-icon">' +
+      '            <span class="input-icon" data-icon="vendors"></span>' +
+      '            <select id="entryVendor"><option value="">Select Vendor</option></select>' +
+      '          </div>' +
+      '        </div>' +
+      '      </div>' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Amount *</label><input type="number" id="entryAmount" placeholder="e.g. 500 or -200" step="0.01"></div>' +
+      '        <div class="form-group"><label>Reference / Cheque No.</label><input type="text" id="entryRef" placeholder="e.g. INV-001"></div>' +
+      '      </div>' +
+      '      <div class="form-group"><label>Description *</label><textarea id="entryDesc" rows="2" placeholder="Payment for..."></textarea></div>' +
+      '      <div class="modal-actions">' +
+      '        <button type="button" class="btn btn-secondary" onclick="closeModal(\'entryModal\')">Cancel</button>' +
+      '        <button type="submit" class="btn btn-primary">Save Entry</button>' +
+      '      </div>' +
+      '    </form>' +
+      '  </div>' +
+      '</div>' +
+
+      '<!-- Manage Banks Modal -->' +
+      '<div class="modal-overlay" id="bankModal">' +
+      '  <div class="modal">' +
+      '    <div class="modal-header">' +
+      '      <h3>Manage Banks</h3>' +
+      '      <button class="close-btn" onclick="closeModal(\'bankModal\')">&times;</button>' +
+      '    </div>' +
+      '    <div class="bank-manager-content" style="padding:24px">' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Bank Name</label><input type="text" id="bankName" placeholder="e.g. HBL, UBL, Meezan"></div>' +
+      '        <div class="form-group"><label>Initial Balance</label><input type="number" id="bankBalance" value="0" step="0.01"></div>' +
+      '      </div>' +
+      '      <div class="modal-actions" style="margin-top:16px">' +
+      '        <button class="btn btn-primary" onclick="addBank()">Add Bank</button>' +
+      '      </div>' +
+      '      <div class="banks-list mt-4" id="banksList"></div>' +
+      '    </div>' +
+      '  </div>' +
+      '</div>';
+
+    renderLayoutWith({ title: 'Cash Book', subtitle: 'Manage your project dashboard and performance', active: 'cashbook' }, bodyHtml);
+
+    var ENTRIES_KEY = 'erp_entries';
+    var BANKS_KEY = 'erp_banks';
+
+    function getEntries() {
+      try { return JSON.parse(localStorage.getItem(ENTRIES_KEY)) || []; } catch (e) { return []; }
+    }
+    function saveEntries(list) { localStorage.setItem(ENTRIES_KEY, JSON.stringify(list)); }
+    function getBanks() {
+      try { return JSON.parse(localStorage.getItem(BANKS_KEY)) || []; } catch (e) { return []; }
+    }
+    function saveBanks(list) { localStorage.setItem(BANKS_KEY, JSON.stringify(list)); }
+
+    function renderEntries() {
+      var list = getEntries();
+      var tbody = document.getElementById('entriesBody');
+      if (!tbody) return;
+
+      // Calculate totals
+      var cashIn = 0, cashOut = 0;
+      list.forEach(function (en) {
+        if (en.mode === 'cash') {
+          if (en.type === 'receipt') cashIn += en.amount;
+          else cashOut += en.amount;
+        }
+      });
+      var cashIE = document.getElementById('cashInHand');
+      if (cashIE) cashIE.textContent = formatMoney(cashIn - cashOut);
+      var netIE = document.getElementById('netBalance');
+      if (netIE) netIE.textContent = formatMoney(cashIn - cashOut);
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="empty-message text-center">No cash entries yet. Click "Add Entry" to record a transaction.</td></tr>';
+        return;
+      }
+      var runningBalance = 0;
+      var html = '';
+      list.forEach(function (en, i) {
+        runningBalance += (en.type === 'receipt' ? en.amount : -en.amount);
+        var modeBadge = '<span class="mode-badge ' + en.mode + '">' + en.mode + '</span>';
+        var partyBadge = en.party
+          ? '<span class="party-badge customer">' + en.party + '</span>'
+          : '<span class="text-muted-c">—</span>';
+        html += '<tr>' +
+          '<td>' + en.date + '</td>' +
+          '<td>' + partyBadge + '</td>' +
+          '<td class="desc-cell">' + (en.desc || '—') + '</td>' +
+          '<td>' + modeBadge + '</td>' +
+          '<td>' + (en.bank || '—') + '</td>' +
+          '<td>' + (en.ref || '—') + '</td>' +
+          '<td class="amount receipt">' + (en.type === 'receipt' ? formatMoney(en.amount) : '—') + '</td>' +
+          '<td class="amount payment">' + (en.type === 'payment' ? formatMoney(en.amount) : '—') + '</td>' +
+          '<td class="amount">' + formatMoney(runningBalance) + '</td>' +
+          '<td>' +
+          '  <div class="action-buttons d-flex gap-2">' +
+          '    <button class="btn-icon danger" title="Delete" onclick="deleteEntry(' + i + ')" data-icon="trash"></button>' +
+          '  </div>' +
+          '</td>' +
+          '</tr>';
+      });
+      tbody.innerHTML = html;
+      injectIcons(tbody);
+    }
+
+    window.saveEntry = function (e) {
+      e.preventDefault();
+      var amount = parseFloat(document.getElementById('entryAmount').value) || 0;
+      if (amount <= 0) {
+        showToast('Please enter a valid amount.', 'error');
+        return;
+      }
+      var today = new Date().toISOString().split('T')[0];
+      var customer = document.getElementById('entryCustomer').value;
+      var vendor = document.getElementById('entryVendor').value;
+      var party = customer || vendor || '';
+      var mode = document.getElementById('entryMode').value;
+      var list = getEntries();
+      list.push({
+        date: document.getElementById('entryDate').value || today,
+        mode: mode,
+        type: document.getElementById('entryType').value,
+        amount: amount,
+        party: party,
+        ref: document.getElementById('entryRef').value.trim(),
+        desc: document.getElementById('entryDesc').value.trim(),
+        bank: mode === 'online' || mode === 'cheque' ? (getBanks()[0] ? getBanks()[0].name : mode === 'cheque' ? 'Cheque' : 'Bank') : ''
+      });
+      saveEntries(list);
+      closeModal('entryModal');
+      renderEntries();
+      showToast('Entry recorded successfully!');
+    };
+
+    window.onModeChange = function () {
+      // No split handling for now, but updates party display in real app
+    };
+
+    window.onSplitChange = function () {
+      showToast('Split payment enabled (advanced)', 'info');
+    };
+
+    function loadCashParties() {
+      var cSel = document.getElementById('entryCustomer');
+      var vSel = document.getElementById('entryVendor');
+      var customers = [];
+      var vendors = [];
+      try { customers = JSON.parse(localStorage.getItem('erp_customers')) || []; } catch (e) {}
+      try { vendors = JSON.parse(localStorage.getItem('erp_vendors')) || []; } catch (e) {}
+      if (cSel) {
+        var ch = '<option value="">Select Customer</option>';
+        customers.forEach(function (c) { ch += '<option value="' + c.name + '">' + c.name + '</option>'; });
+        cSel.innerHTML = ch;
+      }
+      if (vSel) {
+        var vh = '<option value="">Select Vendor</option>';
+        vendors.forEach(function (v) { vh += '<option value="' + v.name + '">' + v.name + '</option>'; });
+        vSel.innerHTML = vh;
+      }
+      if (document.querySelector('#entryModal')) injectIcons(document.getElementById('entryModal'));
+    }
+
+    window.deleteEntry = function (i) {
+      var list = getEntries();
+      list.splice(i, 1);
+      saveEntries(list);
+      renderEntries();
+      showToast('Entry deleted.', 'error');
+    };
+
+    window.downloadCashBookPDF = function () {
+      var list = getEntries();
+      var rows = '';
+      var running = 0;
+      list.forEach(function (en) {
+        running += (en.type === 'receipt' ? en.amount : -en.amount);
+        rows += '<tr>' +
+          '<td>' + en.date + '</td>' +
+          '<td>' + escapeHtml(en.party || '—') + '</td>' +
+          '<td>' + escapeHtml(en.desc || '—') + '</td>' +
+          '<td>' + en.mode + '</td>' +
+          '<td>' + escapeHtml(en.bank || '—') + '</td>' +
+          '<td>' + escapeHtml(en.ref || '—') + '</td>' +
+          '<td>' + (en.type === 'receipt' ? formatMoney(en.amount) : '') + '</td>' +
+          '<td>' + (en.type === 'payment' ? formatMoney(en.amount) : '') + '</td>' +
+          '<td>' + formatMoney(running) + '</td>' +
+          '</tr>';
+      });
+      if (!rows) {
+        showToast('No entries to export yet.', 'info');
+        return;
+      }
+      var table = '<table><thead><tr><th>Date</th><th>Party</th><th>Description</th><th>Mode</th><th>Bank</th><th>Ref</th><th>Receipt</th><th>Payment</th><th>Balance</th></tr></thead><tbody>' + rows + '</tbody></table>';
+      printReport('Cash Book', table, []);
+    };
+
+    window.addBank = function () {
+      var name = document.getElementById('bankName').value.trim();
+      if (!name) {
+        showToast('Please enter bank name.', 'error');
+        return;
+      }
+      var banks = getBanks();
+      banks.push({
+        name: name,
+        balance: parseFloat(document.getElementById('bankBalance').value) || 0
+      });
+      saveBanks(banks);
+      document.getElementById('bankName').value = '';
+      document.getElementById('bankBalance').value = '0';
+      renderBanks();
+      showToast('Bank added!');
+    };
+
+    window.deleteBank = function (i) {
+      var banks = getBanks();
+      banks.splice(i, 1);
+      saveBanks(banks);
+      renderBanks();
+      showToast('Bank removed.', 'error');
+    };
+
+    function renderBanks() {
+      var list = getBanks();
+      var el = document.getElementById('banksList');
+      if (!el) return;
+      if (list.length === 0) {
+        el.innerHTML = '<p class="text-muted-c text-center py-3">No banks added yet.</p>';
+        return;
+      }
+      var html = '<div class="table-container" style="margin-top:0"><table class="data-table" style="min-width:400px"><thead><tr><th>Bank Name</th><th>Balance</th><th>Actions</th></tr></thead><tbody>';
+      list.forEach(function (b, i) {
+        html += '<tr><td>' + b.name + '</td><td class="amount">' + formatMoney(b.balance) + '</td>' +
+          '<td><button class="btn-icon danger" onclick="deleteBank(' + i + ')" data-icon="trash"></button></td></tr>';
+      });
+      html += '</tbody></table></div>';
+      el.innerHTML = html;
+      injectIcons(el);
+    }
+
+    renderEntries();
+    loadCashParties();
+  </script>
+</body>
+</html>

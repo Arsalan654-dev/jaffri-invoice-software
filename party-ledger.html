@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Party Ledger | Demo ERP</title>
+  <link rel="icon" type="image/svg+xml" href="vite.svg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/pdf.js"></script>
+  <script>
+    requireAuth();
+
+    var bodyHtml =
+      '<div class="party-ledger-page">' +
+      '  <div class="page-header">' +
+      '    <div class="title-section d-flex align-items-center gap-3">' +
+      '      <div class="header-icon" data-icon="partyLedger"></div>' +
+      '      <h2>Party Ledger</h2>' +
+      '    </div>' +
+      '    <div class="header-actions">' +
+      '      <button class="btn btn-secondary" disabled data-icon="download"><span>Download PDF</span></button>' +
+      '      <button class="btn btn-secondary" data-icon="download" onclick="printAllCustomers()"><span>Print All Customers</span></button>' +
+      '    </div>' +
+      '  </div>' +
+
+      '  <div class="filters-card">' +
+      '    <div class="type-toggle">' +
+      '      <button class="active" data-type="customer" onclick="setPartyType(this, \'customer\')" data-icon="customers"><span>Customers</span></button>' +
+      '      <button data-type="vendor" onclick="setPartyType(this, \'vendor\')" data-icon="vendors"><span>Vendors</span></button>' +
+      '    </div>' +
+      '    <div class="filter-grid">' +
+      '      <div class="filter-group">' +
+      '        <label id="partySelectLabel">Select Customer</label>' +
+      '        <select id="partySelect" onchange="renderPartyLedger()">' +
+      '          <option value="">-- Select Customer --</option>' +
+      '        </select>' +
+      '      </div>' +
+      '      <div class="filter-group">' +
+      '        <label>From Date</label>' +
+      '        <input type="date" id="fromDate" onchange="renderPartyLedger()" value="2026-01-01">' +
+      '      </div>' +
+      '      <div class="filter-group">' +
+      '        <label>To Date</label>' +
+      '        <input type="date" id="toDate" onchange="renderPartyLedger()" value="2026-09-15">' +
+      '      </div>' +
+      '    </div>' +
+      '  </div>' +
+
+      '  <div id="ledgerResult">' +
+      '    <div class="empty-state">' +
+      '      <div class="empty-icon" data-icon="partyLedger"></div>' +
+      '      <h3>Select a Party</h3>' +
+      '      <p>Choose a customer above to view their ledger statement.</p>' +
+      '    </div>' +
+      '  </div>' +
+      '</div>';
+
+    renderLayoutWith({ title: 'Party Ledger', subtitle: 'Manage your project dashboard and performance', active: 'party-ledger' }, bodyHtml);
+
+    var partyType = 'customer';
+
+    window.setPartyType = function (btn, type) {
+      partyType = type;
+      document.querySelectorAll('.type-toggle button').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('partySelectLabel').textContent = type === 'customer' ? 'Select Customer' : 'Select Vendor';
+      loadPartiesSelect();
+      renderPartyLedger();
+    };
+
+    function loadPartiesSelect() {
+      var sel = document.getElementById('partySelect');
+      var list = [];
+      try {
+        list = JSON.parse(localStorage.getItem(partyType === 'customer' ? 'erp_customers' : 'erp_vendors')) || [];
+      } catch (e) {}
+      var html = partyType === 'customer'
+        ? '<option value="">-- Select Customer --</option>'
+        : '<option value="">-- Select Vendor --</option>';
+      list.forEach(function (p) {
+        html += '<option value="' + p.name + '">' + p.name + '</option>';
+      });
+      sel.innerHTML = html;
+    }
+
+    window.renderPartyLedger = function () {
+      var sel = document.getElementById('partySelect');
+      var name = sel.value;
+      var result = document.getElementById('ledgerResult');
+      if (!name) {
+        result.innerHTML = '<div class="empty-state">' +
+          '  <div class="empty-icon" data-icon="partyLedger"></div>' +
+          '  <h3>Select a Party</h3>' +
+          '  <p>Choose a ' + (partyType === 'customer' ? 'customer' : 'vendor') + ' above to view their ledger statement.</p>' +
+          '</div>';
+        injectIcons(result);
+        return;
+      }
+
+      // Build transactions from invoices
+      var invoices = [];
+      var entries = [];
+      try { invoices = JSON.parse(localStorage.getItem('erp_invoices')) || []; } catch (e) {}
+      try { entries = JSON.parse(localStorage.getItem('erp_entries')) || []; } catch (e) {}
+
+      var txs = [];
+      invoices.forEach(function (inv) {
+        if (inv.party === name) {
+          txs.push({
+            date: inv.date,
+            ref: inv.number,
+            desc: inv.type === 'receivable' ? 'Sales Invoice' : 'Purchase Bill',
+            debit: inv.type === 'receivable' ? inv.total : 0,
+            credit: inv.type === 'payable' ? inv.total : 0
+          });
+        }
+      });
+      entries.forEach(function (en) {
+        if (en.party === name) {
+          txs.push({
+            date: en.date,
+            ref: en.ref || 'CASH',
+            desc: en.desc || (en.type === 'receipt' ? 'Payment Received' : 'Payment Made'),
+            debit: en.type === 'payment' && partyType === 'customer' ? en.amount : 0,
+            credit: en.type === 'receipt' && partyType === 'customer' ? en.amount : 0
+          });
+        }
+      });
+      // vendor entries: receipt => we owe them (debit?) keep simple
+      // For vendors: payment reduces our liability -> treat payment as credit to vendor? Keep simple: show as listed.
+      txs.sort(function (a, b) { return a.date.localeCompare(b.date); });
+
+      var opening = 0, invoiceTotal = 0, paymentTotal = 0, closing = 0;
+      var rows = '';
+      txs.forEach(function (t) {
+        invoiceTotal += t.debit;
+        paymentTotal += t.credit;
+        closing += t.debit - t.credit;
+        rows += '<tr>' +
+          '<td>' + t.date + '</td>' +
+          '<td><a href="#" class="invoice-link">' + t.ref + '</a></td>' +
+          '<td>' + t.desc + '</td>' +
+          '<td class="amount-debit">' + (t.debit ? formatMoney(t.debit) : '') + '</td>' +
+          '<td class="amount-credit">' + (t.credit ? formatMoney(t.credit) : '') + '</td>' +
+          '<td class="amount-balance">' + formatMoney(closing) + '</td>' +
+          '</tr>';
+      });
+      opening = closing - (invoiceTotal - paymentTotal);
+
+      result.innerHTML =
+        '<div class="ledger-summary-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem;margin-bottom:2rem">' +
+        '  <div class="summary-card opening"><span class="label">Opening Balance</span><span class="value">' + formatMoney(opening) + '</span><span class="sub-label">As of ' + document.getElementById('fromDate').value + '</span></div>' +
+        '  <div class="summary-card invoice"><span class="label">Total Invoiced</span><span class="value">' + formatMoney(invoiceTotal) + '</span><span class="sub-label">' + txs.length + ' transactions</span></div>' +
+        '  <div class="summary-card payment"><span class="label">Total Received</span><span class="value">' + formatMoney(paymentTotal) + '</span><span class="sub-label">Towards invoices</span></div>' +
+        '  <div class="summary-card closing"><span class="label">Closing Balance</span><span class="value">' + formatMoney(closing) + '</span><span class="sub-label">Net ' + (closing >= 0 ? 'Receivable' : 'Payable') + '</span></div>' +
+        '</div>' +
+        '<div class="ledger-table-container">' +
+        '  <table class="ledger-table">' +
+        '    <thead><tr><th>Date</th><th>Reference</th><th>Description</th><th class="text-right">Debit</th><th class="text-right">Credit</th><th class="text-right">Balance</th></tr></thead>' +
+        '    <tbody>' +
+        '      <tr class="opening-row"><td colspan="3">Opening Balance</td><td class="text-right"></td><td class="text-right"></td><td class="text-right amount-balance">' + formatMoney(opening) + '</td></tr>' +
+        (rows || '<tr><td colspan="6" class="empty-message text-center">No transactions found for this period.</td></tr>') +
+        '    </tbody>' +
+        (rows ? '<tfoot><tr class="ledger-footer"><td colspan="3">Closing Balance (C/F)</td><td class="text-right amount-debit">' + formatMoney(invoiceTotal) + '</td><td class="text-right amount-credit">' + formatMoney(paymentTotal) + '</td><td class="text-right amount-balance">' + formatMoney(closing) + '</td></tr></tfoot>' : '') +
+        '  </table>' +
+        '</div>';
+    };
+
+    loadPartiesSelect();
+
+    // Print ledger for ALL customers (matches original "Print All Customers")
+    window.printAllCustomers = function () {
+      var customers = [];
+      try { customers = JSON.parse(localStorage.getItem('erp_customers')) || []; } catch (e) {}
+      var invoices = [];
+      try { invoices = JSON.parse(localStorage.getItem('erp_invoices')) || []; } catch (e) {}
+      if (!customers.length) { showToast('No customers available to print.', 'info'); return; }
+
+      var blocks = '';
+      var grandTotal = 0;
+      customers.forEach(function (c) {
+        var txs = invoices.filter(function (inv) {
+          return inv.party === c.name;
+        });
+        var opening = 0, closing = 0;
+        var rows = '';
+        txs.forEach(function (t) {
+          var dr = t.type === 'receivable' ? t.total : 0;
+          var cr = t.type === 'payable' ? t.total : 0;
+          closing += dr - cr;
+          rows += '<tr><td>' + t.date + '</td><td>' + t.number + '</td><td>' + (t.type === 'receivable' ? 'Sales Invoice' : 'Purchase Bill') + '</td><td>' + formatMoney(dr) + '</td><td>' + formatMoney(cr) + '</td><td>' + formatMoney(closing) + '</td></tr>';
+        });
+        if (!rows) rows = '<tr><td colspan="6" style="color:#94a3b8">No transactions</td></tr>';
+        grandTotal += closing;
+        blocks +=
+          '<h3 style="margin:24px 0 8px;color:#4f46e5">' + c.name + ' <span style="font-size:.75rem;color:#64748b;font-weight:500">' + (c.email || '') + ' · ' + (c.phone || '') + '</span></h3>' +
+          '<table><thead><tr><th>Date</th><th>Ref</th><th>Description</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>' +
+          '<tbody><tr><td colspan="3" style="background:#fef3c7;font-weight:600">Opening Balance</td><td colspan="2"></td><td>' + formatMoney(opening) + '</td></tr>' + rows +
+          '<tr style="background:#f8fafc;font-weight:700"><td colspan="3">Closing (C/F)</td><td colspan="2"></td><td>' + formatMoney(closing) + '</td></tr></tbody></table>';
+      });
+      printReport('All Customers Ledger', blocks, [{ label: 'Customers', value: customers.length }, { label: 'Net Balance', value: formatMoney(grandTotal) }]);
+    };
+  </script>
+</body>
+</html>

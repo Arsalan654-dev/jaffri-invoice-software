@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports | Demo ERP</title>
+  <link rel="icon" type="image/svg+xml" href="vite.svg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/pdf.js"></script>
+  <script>
+    requireAuth();
+
+    // ===== Report generators (real data from localStorage) =====
+    function getInvoicesData() {
+      try { return JSON.parse(localStorage.getItem('erp_invoices')) || []; } catch (e) { return []; }
+    }
+    function getItemsData() {
+      try { return JSON.parse(localStorage.getItem('erp_items')) || []; } catch (e) { return []; }
+    }
+    function getEntriesData() {
+      try { return JSON.parse(localStorage.getItem('erp_entries')) || []; } catch (e) { return []; }
+    }
+
+    window.generatePNL = function () {
+      var invoices = getInvoicesData();
+      var entries = getEntriesData();
+      var sales = 0, purchases = 0, cashIn = 0, cashOut = 0;
+      invoices.forEach(function (inv) {
+        if (inv.type === 'receivable') sales += inv.total;
+        else purchases += inv.total;
+      });
+      entries.forEach(function (en) {
+        if (en.type === 'receipt') cashIn += en.amount;
+        else cashOut += en.amount;
+      });
+      var grossProfit = sales - purchases;
+      var netProfit = grossProfit + cashIn - cashOut;
+      var rows =
+        '<tr><td>Sales Revenue</td><td>' + formatMoney(sales) + '</td></tr>' +
+        '<tr><td>Cost of Goods (Purchases)</td><td>' + formatMoney(purchases) + '</td></tr>' +
+        '<tr><td>Cash Receipts</td><td>' + formatMoney(cashIn) + '</td></tr>' +
+        '<tr><td>Cash Payments</td><td>' + formatMoney(cashOut) + '</td></tr>' +
+        '<tr><td colspan="2"></td></tr>' +
+        '<tr><td><strong>Net Profit / Loss</strong></td><td><strong>' + formatMoney(netProfit) + '</strong></td></tr>';
+      var table = '<table><thead><tr><th style="width:60%">Particulars</th><th>Amount</th></tr></thead><tbody>' + rows + '</tbody></table>';
+      printReport('Profit & Loss Statement', table, [
+        { label: 'Sales', value: formatMoney(sales) },
+        { label: 'Purchases', value: formatMoney(purchases) },
+        { label: 'Net P&L', value: formatMoney(netProfit) }
+      ]);
+    };
+
+    window.generateBalanceSheet = function () {
+      var invoices = getInvoicesData();
+      var entries = getEntriesData();
+      var cash = 0, bank = 0, receivable = 0, payable = 0;
+      entries.forEach(function (en) {
+        var amt = en.type === 'receipt' ? en.amount : -en.amount;
+        if (en.mode === 'online') bank += amt; else cash += amt;
+      });
+      invoices.forEach(function (inv) {
+        var due = inv.total - (inv.paid || 0);
+        if (inv.type === 'receivable') receivable += due;
+        else payable += due;
+      });
+      var totalAssets = cash + bank + receivable;
+      var totalLiab = payable;
+      var equity = totalAssets - totalLiab;
+      var rows =
+        '<tr><td>Cash in Hand</td><td>' + formatMoney(cash) + '</td></tr>' +
+        '<tr><td>Bank Balances</td><td>' + formatMoney(bank) + '</td></tr>' +
+        '<tr><td>Accounts Receivable</td><td>' + formatMoney(receivable) + '</td></tr>' +
+        '<tr><td>Accounts Payable</td><td>' + formatMoney(payable) + '</td></tr>' +
+        '<tr><td>Equity / Net Worth</td><td>' + formatMoney(equity) + '</td></tr>';
+      var table = '<table><thead><tr><th style="width:60%">Item</th><th>Amount</th></tr></thead><tbody>' + rows + '</tbody></table>';
+      printReport('Balance Sheet', table, [
+        { label: 'Total Assets', value: formatMoney(totalAssets) },
+        { label: 'Total Liabilities', value: formatMoney(totalLiab) },
+        { label: 'Equity', value: formatMoney(equity) }
+      ]);
+    };
+
+    window.generateAging = function () {
+      var invoices = getInvoicesData();
+      var rows = '';
+      var totalDue = 0;
+      invoices.forEach(function (inv) {
+        if (inv.type === 'receivable') {
+          var due = inv.total - (inv.paid || 0);
+          totalDue += due;
+          var aging = due <= 0 ? 'Paid' : '0-30 days';
+          rows += '<tr><td>' + inv.number + '</td><td>' + inv.party + '</td><td>' + inv.date + '</td><td>' + aging + '</td><td>' + formatMoney(due) + '</td></tr>';
+        }
+      });
+      var table = '<table><thead><tr><th>Invoice #</th><th>Customer</th><th>Date</th><th>Aging</th><th>Due</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" style="color:#94a3b8">No receivable invoices</td></tr>') + '</tbody></table>';
+      printReport('Accounts Receivable Aging', table, [{ label: 'Total Outstanding', value: formatMoney(totalDue) }]);
+    };
+
+    window.generateInventoryValuation = function () {
+      var items = getItemsData();
+      var rows = '';
+      var totalValue = 0;
+      items.forEach(function (it) {
+        var value = it.qty * it.price;
+        totalValue += value;
+        rows += '<tr><td>' + it.name + '</td><td>' + it.sku + '</td><td>' + it.qty + '</td><td>' + formatMoney(it.price) + '</td><td>' + formatMoney(value) + '</td></tr>';
+      });
+      var table = '<table><thead><tr><th>Item</th><th>SKU</th><th>Qty</th><th>Unit Price</th><th>Value</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" style="color:#94a3b8">No inventory items</td></tr>') + '</tbody></table>';
+      printReport('Inventory Valuation', table, [{ label: 'Total Stock Value', value: formatMoney(totalValue) }]);
+    };
+
+    var bodyHtml =
+      '<div class="reports-page">' +
+      '  <div class="page-header">' +
+      '    <h2>Financial Reports</h2>' +
+      '  </div>' +
+      '  <div class="reports-grid">' +
+      '    <div class="report-card">' +
+      '      <div class="report-icon-wrapper icon-bg-green" data-icon="chart"></div>' +
+      '      <div class="report-info">' +
+      '        <h3>Profit &amp; Loss Statement</h3>' +
+      '        <p>Income and expenses summary over a period.</p>' +
+      '      </div>' +
+      '      <button class="btn-icon-text" data-icon="download" onclick="generatePNL()"><span>Generate PDF</span></button>' +
+      '    </div>' +
+      '    <div class="report-card">' +
+      '      <div class="report-icon-wrapper icon-bg-indigo" data-icon="bank"></div>' +
+      '      <div class="report-info">' +
+      '        <h3>Balance Sheet</h3>' +
+      '        <p>Assets, liabilities, and equity at a specific date.</p>' +
+      '      </div>' +
+      '      <button class="btn-icon-text" data-icon="download" onclick="generateBalanceSheet()"><span>Generate PDF</span></button>' +
+      '    </div>' +
+      '    <div class="report-card">' +
+      '      <div class="report-icon-wrapper icon-bg-amber" data-icon="cash"></div>' +
+      '      <div class="report-info">' +
+      '        <h3>Accounts Receivable Aging</h3>' +
+      '        <p>Summary of outstanding customer invoices.</p>' +
+      '      </div>' +
+      '      <button class="btn-icon-text" data-icon="download" onclick="generateAging()"><span>Generate PDF</span></button>' +
+      '    </div>' +
+      '    <div class="report-card">' +
+      '      <div class="report-icon-wrapper icon-bg-rose" data-icon="box"></div>' +
+      '      <div class="report-info">' +
+      '        <h3>Inventory Valuation</h3>' +
+      '        <p>Current stock value and quantity report.</p>' +
+      '      </div>' +
+      '      <button class="btn-icon-text" data-icon="download" onclick="generateInventoryValuation()"><span>Generate PDF</span></button>' +
+      '    </div>' +
+      '  </div>' +
+
+      '  <div class="analytics-preview">' +
+      '    <h3>Performance Analytics</h3>' +
+      '    <div class="analytics-placeholder">' +
+      '      <div class="placeholder-icon" data-icon="chart"></div>' +
+      '      <p>Real-time chart generation will appear here</p>' +
+      '    </div>' +
+      '  </div>' +
+      '</div>';
+
+    renderLayoutWith({ title: 'Reports', subtitle: 'Manage your project dashboard and performance', active: 'reports' }, bodyHtml);
+  </script>
+</body>
+</html>

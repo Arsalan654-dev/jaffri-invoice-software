@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoices | Demo ERP</title>
+  <link rel="icon" type="image/svg+xml" href="vite.svg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/pdf.js"></script>
+  <script>
+    requireAuth();
+
+    var bodyHtml =
+      '<div class="invoices-page">' +
+      '  <div class="page-header">' +
+      '    <h2>Invoices</h2>' +
+      '    <button class="btn btn-primary" data-icon="plus" onclick="openModal(\'invoiceModal\')"><span>Create Invoice</span></button>' +
+      '  </div>' +
+      '  <div class="filters">' +
+      '    <div class="search-bar">' +
+      '      <span class="search-icon" data-icon="search"></span>' +
+      '      <input type="text" id="invoiceSearch" placeholder="Search invoices..." oninput="filterInvoices()" />' +
+      '    </div>' +
+      '    <div class="filter-tabs">' +
+      '      <button class="active" data-filter="all" onclick="setFilter(this, \'all\')">All</button>' +
+      '      <button data-filter="receivable" onclick="setFilter(this, \'receivable\')">Receivable</button>' +
+      '      <button data-filter="payable" onclick="setFilter(this, \'payable\')">Payable</button>' +
+      '    </div>' +
+      '  </div>' +
+      '  <div class="table-container">' +
+      '    <table class="data-table">' +
+      '      <thead>' +
+      '        <tr><th>Invoice #</th><th>Type</th><th>Date</th><th>Due Date</th><th>Total</th><th>Paid</th><th>Method</th><th>Status</th><th>Actions</th></tr>' +
+      '      </thead>' +
+      '      <tbody id="invoicesBody">' +
+      '        <tr><td colspan="9" class="empty-message text-center">No invoices yet. Click "Create Invoice" to create one.</td></tr>' +
+      '      </tbody>' +
+      '    </table>' +
+      '  </div>' +
+      '</div>' +
+
+      '<!-- Create Invoice Modal (matches original) -->' +
+      '<div class="modal-overlay" id="invoiceModal">' +
+      '  <div class="modal large">' +
+      '    <div class="modal-header">' +
+      '      <h3 id="invoiceModalTitle">Create New Invoice</h3>' +
+      '      <button class="close-btn" onclick="closeModal(\'invoiceModal\')">&times;</button>' +
+      '    </div>' +
+      '    <form onsubmit="saveInvoice(event)">' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Type *</label>' +
+      '          <select id="invType" onchange="onInvTypeChange()">' +
+      '            <option value="receivable">Receivable</option>' +
+      '            <option value="payable">Payable</option>' +
+      '          </select>' +
+      '        </div>' +
+      '        <div class="form-group"><label id="invPartyLabel">Customer *</label>' +
+      '          <div class="select-with-add">' +
+      '            <select id="invParty"><option value="">Select Customer</option></select>' +
+      '            <button type="button" class="btn-icon-small" title="Add New Customer" onclick="openModal(\'quickCustomerModal\')" data-icon="plus"></button>' +
+      '          </div>' +
+      '        </div>' +
+      '      </div>' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Invoice Date *</label><input type="date" id="invDate"></div>' +
+      '        <div class="form-group"><label>Due Date *</label><input type="date" id="invDueDate"></div>' +
+      '      </div>' +
+
+      '      <div class="items-section">' +
+      '        <h4>Items</h4>' +
+      '        <div class="items-header-row has-unit">' +
+      '          <span>Description</span><span>Qty</span><span>Unit</span><span class="text-right">Price</span><span class="text-right">Amount</span><span></span>' +
+      '        </div>' +
+      '        <div id="invoiceItems"></div>' +
+      '        <button type="button" class="btn btn-secondary" style="margin-top:12px" data-icon="plus" onclick="addInvoiceItem()"><span>Add Item</span></button>' +
+      '      </div>' +
+
+      '      <div class="form-row" style="margin-top:0">' +
+      '        <div class="form-group"><label>Discount Type</label>' +
+      '          <select id="invDiscountType" onchange="calcTotals()">' +
+      '            <option value="none">None</option>' +
+      '            <option value="percentage">Percentage</option>' +
+      '            <option value="fixed">Fixed</option>' +
+      '          </select>' +
+      '        </div>' +
+      '        <div class="form-group"><label id="invDiscountLabel">Discount</label><input type="number" id="invDiscount" value="0" step="0.01" oninput="calcTotals()"></div>' +
+      '      </div>' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Tax (%)</label><input type="number" id="invTax" value="0" step="0.01" oninput="calcTotals()"></div>' +
+        '        <div class="form-group"><label>Cash/Bank Payment</label><input type="number" id="invPaid" value="0" step="0.01" oninput="calcTotals()"></div>' +
+        '      </div>' +
+        '      <div class="form-row">' +
+        '        <div class="form-group"><label>Payment Mode</label>' +
+        '          <select id="invMethod" onchange="onPaymentModeChange()">' +
+        '            <option value="cash">Cash Payment</option>' +
+        '            <option value="online">Online Payment</option>' +
+        '            <option value="none">None</option>' +
+        '          </select>' +
+        '        </div>' +
+        '        <div class="form-group"></div>' +
+      '      <div class="totals-section">' +
+      '        <div class="totals-display">' +
+      '          <div class="total-row"><span>Subtotal:</span><span id="tSubtotal">Rs. 0.00</span></div>' +
+      '          <div class="total-row"><span>Tax:</span><span id="tTax">Rs. 0.00</span></div>' +
+      '          <div class="total-row"><span>Total:</span><span id="tTotal">Rs. 0.00</span></div>' +
+      '          <div class="total-row"><span>Cash/Bank Paid:</span><span id="tPaid">Rs. 0.00</span></div>' +
+      '          <div class="total-row grand-total"><span>Balance Due:</span><span id="tBalanceDue">Rs. 0.00</span></div>' +
+      '        </div>' +
+      '      </div>' +
+
+      '      <div class="form-group"><label>Notes</label><textarea id="invNotes" rows="3" placeholder="Optional notes..."></textarea></div>' +
+      '      <div class="modal-actions">' +
+      '        <button type="button" class="btn btn-secondary" onclick="closeModal(\'invoiceModal\')">Cancel</button>' +
+      '        <button type="submit" class="btn btn-primary">Create Invoice</button>' +
+      '      </div>' +
+      '    </form>' +
+      '  </div>' +
+      '</div>' +
+
+      '<!-- Quick Add Customer Modal -->' +
+      '<div class="modal-overlay" id="quickCustomerModal">' +
+      '  <div class="modal">' +
+      '    <div class="modal-header">' +
+      '      <h3>Add New Customer</h3>' +
+      '      <button class="close-btn" onclick="closeModal(\'quickCustomerModal\')">&times;</button>' +
+      '    </div>' +
+      '    <form onsubmit="quickAddCustomer(event)">' +
+      '      <div class="form-group"><label>Name</label><input type="text" id="qcName" required></div>' +
+      '      <div class="form-group" style="margin-top:16px"><label>Phone</label><input type="text" id="qcPhone"></div>' +
+      '      <div class="form-group" style="margin-top:16px"><label>Email</label><input type="email" id="qcEmail"></div>' +
+      '      <div class="modal-actions">' +
+      '        <button type="button" class="btn btn-secondary" onclick="closeModal(\'quickCustomerModal\')">Cancel</button>' +
+      '        <button type="submit" class="btn btn-primary">Save Customer</button>' +
+      '      </div>' +
+      '    </form>' +
+      '  </div>' +
+      '</div>';
+
+    renderLayoutWith({ title: 'Invoices', subtitle: 'Manage your project dashboard and performance', active: 'invoices' }, bodyHtml);
+
+    var INVOICES_KEY = 'erp_invoices';
+    function getInvoices() {
+      try { return JSON.parse(localStorage.getItem(INVOICES_KEY)) || []; } catch (e) { return []; }
+    }
+    function saveInvoices(list) { localStorage.setItem(INVOICES_KEY, JSON.stringify(list)); }
+    function getCustomers() {
+      try { return JSON.parse(localStorage.getItem('erp_customers')) || []; } catch (e) { return []; }
+    }
+
+    window.setFilter = function (btn, filter) {
+      document.querySelectorAll('.filter-tabs button').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      filterInvoices();
+    };
+
+    window.filterInvoices = function () {
+      var q = (document.getElementById('invoiceSearch').value || '').toLowerCase();
+      var activeFilter = document.querySelector('.filter-tabs button.active');
+      var filter = activeFilter ? activeFilter.getAttribute('data-filter') : 'all';
+      var list = getInvoices().filter(function (inv) {
+        var matchFilter = filter === 'all' || inv.type === filter;
+        var matchSearch = inv.number.toLowerCase().indexOf(q) > -1 || inv.party.toLowerCase().indexOf(q) > -1;
+        return matchFilter && matchSearch;
+      });
+      renderInvoiceRows(list);
+    };
+
+    function renderInvoiceRows(list) {
+      var tbody = document.getElementById('invoicesBody');
+      if (!tbody) return;
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-message text-center">No invoices match your criteria.</td></tr>';
+        return;
+      }
+      var html = '';
+      list.forEach(function (inv, i) {
+        var badgeCls = inv.type === 'receivable' ? 'badge receivable' : 'badge payable';
+        var badgeLabel = inv.type === 'receivable' ? 'Receivable' : 'Payable';
+        var methodBadge = '<span class="method-badge ' + inv.method + '">' + inv.method + '</span>';
+        var statusBadge = '<span class="status-badge ' + inv.status + '">' + inv.status + '</span>';
+        html += '<tr>' +
+          '<td class="font-bold">' + inv.number + '</td>' +
+          '<td><span class="' + badgeCls + '">' + badgeLabel + '</span></td>' +
+          '<td>' + inv.date + '</td>' +
+          '<td>' + inv.dueDate + '</td>' +
+          '<td class="amount">' + formatMoney(inv.total) + '</td>' +
+          '<td class="amount">' + formatMoney(inv.paid) + '</td>' +
+          '<td>' + methodBadge + '</td>' +
+          '<td>' + statusBadge + '</td>' +
+          '<td>' +
+          '  <div class="action-buttons d-flex gap-2">' +
+          '    <button class="btn-icon" title="View Invoice" onclick="viewInvoice(' + i + ')" data-icon="eye"></button>' +
+          '    <button class="btn-icon danger" title="Delete" onclick="deleteInvoice(' + i + ')" data-icon="trash"></button>' +
+          '  </div>' +
+          '</td>' +
+          '</tr>';
+      });
+      tbody.innerHTML = html;
+      injectIcons(tbody);
+    }
+
+    window.saveInvoice = function (e) {
+      e.preventDefault();
+      var partyVal = document.getElementById('invParty').value;
+      if (!partyVal) {
+        showToast('Please select a party.', 'error');
+        return;
+      }
+      var type = document.getElementById('invType').value;
+      var party = partyVal.substring(2);
+      var today = new Date().toISOString().split('T')[0];
+      var list = getInvoices();
+      var number = type === 'receivable' ? 'INV-' + String(list.length + 1).padStart(3, '0') : 'BILL-' + String(list.length + 1).padStart(3, '0');
+      var totals = getTotals();
+      var method = document.getElementById('invMethod').value;
+      var invoiceItems = [];
+      document.querySelectorAll('#invoiceItems .item-row').forEach(function (row) {
+        var desc = row.querySelector('.item-desc').value.trim();
+        var qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+        var unitBtn = row.querySelector('.unit-toggle .unit-btn.active');
+        var unit = unitBtn ? unitBtn.getAttribute('data-unit') : 'Pcs';
+        var price = parseFloat(row.querySelector('.item-price').value) || 0;
+        if (desc) invoiceItems.push({ desc: desc, qty: qty, unit: unit, price: price, amount: qty * price });
+      });
+      var paidAmt = totals.paid;
+      list.push({
+        number: number,
+        type: type,
+        party: party,
+        date: document.getElementById('invDate').value || today,
+        dueDate: document.getElementById('invDueDate').value || today,
+        total: totals.total,
+        subtotal: totals.subtotal,
+        tax: totals.tax,
+        discount: totals.discount,
+        paid: paidAmt,
+        method: method,
+        status: totals.due === 0 ? 'paid' : (totals.paid > 0 ? 'partial' : 'pending'),
+        items: invoiceItems,
+        notes: document.getElementById('invNotes').value
+      });
+      saveInvoices(list);
+      closeModal('invoiceModal');
+      resetInvoiceForm();
+      filterInvoices();
+      showToast('Invoice ' + number + ' created!');
+    };
+
+    window.deleteInvoice = function (i) {
+      var list = getInvoices();
+      list.splice(i, 1);
+      saveInvoices(list);
+      filterInvoices();
+      showToast('Invoice deleted.', 'error');
+    };
+
+    window.viewInvoice = function (i) {
+      var list = getInvoices();
+      var inv = list[i];
+      if (!inv) return;
+      printInvoicePDF(inv);
+    };
+
+    // ===== Invoice items & totals (matching original) =====
+    var itemCounter = 0;
+    window.addInvoiceItem = function () {
+      var container = document.getElementById('invoiceItems');
+      var html =
+        '<div class="item-row has-unit" data-idx="' + itemCounter + '">' +
+        '  <input type="text" class="item-desc" placeholder="Description" oninput="calcTotals()" />' +
+        '  <input type="number" class="item-qty" value="1" min="0" oninput="calcTotals()" />' +
+        '  <div class="unit-toggle">' +
+        '    <button type="button" class="unit-btn active" data-unit="Pcs" onclick="setUnit(this, \'Pcs\')">Pcs</button>' +
+        '    <button type="button" class="unit-btn" data-unit="Kg" onclick="setUnit(this, \'Kg\')">Kg</button>' +
+        '  </div>' +
+        '  <input type="number" class="item-price" value="0" min="0" step="0.01" oninput="calcTotals()" />' +
+        '  <input type="number" class="amount-input item-amount" value="0" readonly />' +
+        '  <button type="button" class="btn-icon danger" title="Remove" onclick="removeInvoiceItem(this)" data-icon="trash"></button>' +
+        '</div>';
+      container.insertAdjacentHTML('beforeend', html);
+      var last = container.querySelector('.item-row:last-child');
+      injectIcons(last);
+      itemCounter++;
+      calcTotals();
+    };
+
+    window.setUnit = function (btn, unit) {
+      btn.parentElement.querySelectorAll('.unit-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+    };
+
+    window.removeInvoiceItem = function (btn) {
+      btn.closest('.item-row').remove();
+      calcTotals();
+    };
+
+    function getTotals() {
+      var subtotal = 0;
+      document.querySelectorAll('#invoiceItems .item-row').forEach(function (row) {
+        var qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+        var price = parseFloat(row.querySelector('.item-price').value) || 0;
+        var amount = qty * price;
+        row.querySelector('.item-amount').value = amount.toFixed(2);
+        subtotal += amount;
+      });
+      var discType = document.getElementById('invDiscountType').value;
+      var discVal = parseFloat(document.getElementById('invDiscount').value) || 0;
+      var discount = 0;
+      if (discType === 'percentage') discount = subtotal * (discVal / 100);
+      else if (discType === 'fixed') discount = discVal;
+      var taxRate = parseFloat(document.getElementById('invTax').value) || 0;
+      var taxable = subtotal - discount;
+      var tax = taxable * (taxRate / 100);
+      var total = taxable + tax;
+      var manualPaid = parseFloat(document.getElementById('invPaid').value) || 0;
+      var method = document.getElementById('invMethod').value;
+      var paid = method === 'none' ? 0 : (manualPaid > 0 ? Math.min(manualPaid, total) : total);
+      var due = total - paid;
+      return { subtotal: subtotal, discount: discount, tax: tax, total: total, paid: paid, due: due };
+    }
+
+    window.calcTotals = function () {
+      var t = getTotals();
+      document.getElementById('tSubtotal').textContent = formatMoney(t.subtotal);
+      document.getElementById('tTax').textContent = formatMoney(t.tax);
+      document.getElementById('tTotal').textContent = formatMoney(t.total);
+      document.getElementById('tPaid').textContent = formatMoney(t.paid);
+      document.getElementById('tBalanceDue').textContent = formatMoney(t.due);
+    };
+
+    window.onPaymentModeChange = function () { calcTotals(); };
+    window.onInvTypeChange = function () {
+      var type = document.getElementById('invType').value;
+      document.getElementById('invPartyLabel').textContent = type === 'receivable' ? 'Customer *' : 'Vendor *';
+      document.getElementById('invoiceModalTitle').textContent = type === 'receivable' ? 'Create New Invoice' : 'Create New Bill';
+      loadParties();
+    };
+
+    window.quickAddCustomer = function (e) {
+      e.preventDefault();
+      var list = getCustomers();
+      list.push({
+        name: document.getElementById('qcName').value.trim(),
+        phone: document.getElementById('qcPhone').value.trim(),
+        email: document.getElementById('qcEmail').value.trim(),
+        balance: 0
+      });
+      localStorage.setItem('erp_customers', JSON.stringify(list));
+      document.getElementById('qcName').value = '';
+      document.getElementById('qcPhone').value = '';
+      document.getElementById('qcEmail').value = '';
+      closeModal('quickCustomerModal');
+      loadParties();
+      showToast('Customer added!');
+    };
+
+    function resetInvoiceForm() {
+      document.getElementById('invoiceItems').innerHTML = '';
+      document.getElementById('invNotes').value = '';
+      document.getElementById('invDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('invDueDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('invDiscountType').value = 'none';
+      document.getElementById('invDiscount').value = '0';
+      document.getElementById('invTax').value = '0';
+      document.getElementById('invMethod').value = 'cash';
+      addInvoiceItem();
+      calcTotals();
+    }
+
+    // Populate party select from customers/vendors
+    function loadParties() {
+      var sel = document.getElementById('invParty');
+      if (!sel) return;
+      var type = document.getElementById('invType').value;
+      var customers = [];
+      var vendors = [];
+      try { customers = JSON.parse(localStorage.getItem('erp_customers')) || []; } catch (e) {}
+      try { vendors = JSON.parse(localStorage.getItem('erp_vendors')) || []; } catch (e) {}
+      var list = type === 'receivable' ? customers : vendors;
+      var html = type === 'receivable' ? '<option value="">Select Customer</option>' : '<option value="">Select Vendor</option>';
+      list.forEach(function (c) { html += '<option value="' + (type === 'receivable' ? 'c:' : 'v:') + c.name + '">' + c.name + '</option>'; });
+      sel.innerHTML = html;
+    }
+
+    // Init dates + first item
+    document.getElementById('invDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('invDueDate').value = new Date().toISOString().split('T')[0];
+    addInvoiceItem();
+    calcTotals();
+    loadParties();
+    filterInvoices();
+  </script>
+</body>
+</html>

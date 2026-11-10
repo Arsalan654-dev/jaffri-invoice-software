@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventory | Demo ERP</title>
+  <link rel="icon" type="image/svg+xml" href="vite.svg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    requireAuth();
+
+    var bodyHtml =
+      '<div class="customers-page">' +
+      '  <div class="page-header">' +
+      '    <h2>Inventory Management</h2>' +
+      '    <button class="btn btn-primary" data-icon="plus" onclick="openModal(\'itemModal\')"><span>Add Item</span></button>' +
+      '  </div>' +
+      '  <div class="inventory-grid" id="inventoryGrid">' +
+      '    <div class="empty-state">' +
+      '      <div class="empty-icon" data-icon="box"></div>' +
+      '      <h3>No inventory items</h3>' +
+      '      <p>Click "Add Item" to add your first product.</p>' +
+      '    </div>' +
+      '  </div>' +
+      '</div>' +
+
+      '<!-- Add Item Modal (matches original: image + reorder level) -->' +
+      '<div class="modal-overlay" id="itemModal">' +
+      '  <div class="modal large">' +
+      '    <div class="modal-header">' +
+      '      <h3>Add New Item</h3>' +
+      '      <button class="close-btn" onclick="closeModal(\'itemModal\')">&times;</button>' +
+      '    </div>' +
+      '    <form onsubmit="saveItem(event)">' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Item Name *</label><input type="text" id="itemName" required placeholder="Product name"></div>' +
+      '        <div class="form-group"><label>SKU *</label><input type="text" id="itemSku" placeholder="SKU-001"></div>' +
+      '      </div>' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Description</label><textarea id="itemDesc" rows="3" placeholder="Optional description..."></textarea></div>' +
+      '        <div class="form-group">' +
+      '          <label>Product Image</label>' +
+      '          <div class="image-upload-container">' +
+      '            <div class="image-preview" id="itemImagePreview"><span class="text-muted-c" style="font-size:.85rem">No image selected</span></div>' +
+      '            <input type="file" class="file-input" id="itemImage" accept="image/*" onchange="previewItemImage(event)">' +
+      '          </div>' +
+      '        </div>' +
+      '      </div>' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Unit Price</label><input type="number" id="itemPrice" value="0" step="0.01"></div>' +
+      '        <div class="form-group"><label>Qty on Hand</label><input type="number" id="itemQty" value="0"></div>' +
+      '      </div>' +
+      '      <div class="form-group"><label>Reorder Level</label><input type="number" id="itemReorder" value="5"></div>' +
+      '      <div class="modal-actions">' +
+      '        <button type="button" class="btn btn-secondary" onclick="closeModal(\'itemModal\')">Cancel</button>' +
+      '        <button type="submit" class="btn btn-primary">Create Item</button>' +
+      '      </div>' +
+      '    </form>' +
+      '  </div>' +
+      '</div>';
+
+    renderLayoutWith({ title: 'Inventory', subtitle: 'Manage your project dashboard and performance', active: 'inventory' }, bodyHtml);
+
+    var ITEMS_KEY = 'erp_items';
+    function getItems() {
+      try { return JSON.parse(localStorage.getItem(ITEMS_KEY)) || []; } catch (e) { return []; }
+    }
+    function saveItems(list) { localStorage.setItem(ITEMS_KEY, JSON.stringify(list)); }
+
+    function renderItems() {
+      var list = getItems();
+      var grid = document.getElementById('inventoryGrid');
+      if (!grid) return;
+      if (list.length === 0) {
+        grid.innerHTML = '<div class="empty-state">' +
+          '  <div class="empty-icon" data-icon="box"></div>' +
+          '  <h3>No inventory items</h3>' +
+          '  <p>Click "Add Item" to add your first product.</p>' +
+          '</div>';
+        injectIcons(grid);
+        return;
+      }
+      var html = '';
+      list.forEach(function (item, i) {
+        var lowStock = item.qty <= (item.reorder || 5);
+        var imgHtml = item.image
+          ? '<img class="product-image" src="' + item.image + '" alt="' + item.name + '">'
+          : '<div class="placeholder-image" data-icon="box"></div>';
+        html += '<div class="inventory-card">' +
+          '  <div class="card-image-container">' +
+          imgHtml +
+          '    <span class="badge-sku">' + item.sku + '</span>' +
+          '  </div>' +
+          '  <div class="card-content">' +
+          '    <h3>' + item.name + '</h3>' +
+          '    <p class="description">' + (item.desc || 'No description provided.') + '</p>' +
+          (lowStock ? '<div class="stock-alert">⚠️ Low stock: only ' + item.qty + ' unit(s) left</div>' : '') +
+          '    <div class="card-stats">' +
+          '      <div class="stat"><span class="label">Quantity</span><span class="value ' + (lowStock ? 'low-stock' : '') + '">' + item.qty + '</span></div>' +
+          '      <div class="stat"><span class="label">Price</span><span class="value">Rs. ' + Number(item.price).toLocaleString('en-PK') + '</span></div>' +
+          '    </div>' +
+          '    <div class="card-actions">' +
+          '      <button class="btn-edit-card" onclick="editItem(' + i + ')">✏️ Edit</button>' +
+          '      <button class="btn-delete-card" onclick="deleteItem(' + i + ')">🗑️ Delete</button>' +
+          '    </div>' +
+          '  </div>' +
+          '</div>';
+      });
+      grid.innerHTML = html;
+      injectIcons(grid);
+    }
+
+    window.saveItem = function (e) {
+      e.preventDefault();
+      var list = getItems();
+      var imageData = '';
+      var previewImg = document.getElementById('itemImagePreview').querySelector('img');
+      if (previewImg) imageData = previewImg.src;
+      list.push({
+        name: document.getElementById('itemName').value.trim(),
+        sku: document.getElementById('itemSku').value.trim() || 'SKU-' + String(list.length + 1).padStart(3, '0'),
+        qty: parseInt(document.getElementById('itemQty').value) || 0,
+        price: parseFloat(document.getElementById('itemPrice').value) || 0,
+        reorder: parseInt(document.getElementById('itemReorder').value) || 5,
+        desc: document.getElementById('itemDesc').value,
+        image: imageData
+      });
+      saveItems(list);
+      closeModal('itemModal');
+      document.getElementById('itemName').value = '';
+      document.getElementById('itemSku').value = '';
+      document.getElementById('itemQty').value = '0';
+      document.getElementById('itemPrice').value = '0';
+      document.getElementById('itemReorder').value = '5';
+      document.getElementById('itemDesc').value = '';
+      document.getElementById('itemImage').value = '';
+      document.getElementById('itemImagePreview').innerHTML = '<span class="text-muted-c" style="font-size:.85rem">No image selected</span>';
+      renderItems();
+      showToast('Item created successfully!');
+    };
+
+    window.previewItemImage = function (evt) {
+      var file = evt.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function (e2) {
+        var preview = document.getElementById('itemImagePreview');
+        preview.innerHTML = '<img src="' + e2.target.result + '" alt="Preview" style="width:100%;height:100%;object-fit:cover">';
+      };
+      reader.readAsDataURL(file);
+    };
+
+    window.deleteItem = function (i) {
+      var list = getItems();
+      list.splice(i, 1);
+      saveItems(list);
+      renderItems();
+      showToast('Item deleted.', 'error');
+    };
+
+    window.editItem = function (i) {
+      var list = getItems();
+      var item = list[i];
+      if (!item) return;
+      document.getElementById('itemName').value = item.name;
+      document.getElementById('itemSku').value = item.sku;
+      document.getElementById('itemQty').value = item.qty;
+      document.getElementById('itemPrice').value = item.price;
+      document.getElementById('itemDesc').value = item.desc || '';
+      openModal('itemModal');
+      showToast('Editing item - save to update (demo)', 'info');
+    };
+
+    renderItems();
+  </script>
+</body>
+</html>

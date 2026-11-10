@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customers | Demo ERP</title>
+  <link rel="icon" type="image/svg+xml" href="vite.svg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    requireAuth();
+
+    var bodyHtml =
+      '<div class="customers-page">' +
+      '  <div class="page-header">' +
+      '    <h2>Customers</h2>' +
+      '    <button class="btn btn-primary" data-icon="plus" onclick="openModal(\'customerModal\')"><span>Add Customer</span></button>' +
+      '  </div>' +
+      '  <div class="table-container">' +
+      '    <table class="data-table">' +
+      '      <thead>' +
+      '        <tr><th>Name</th><th>Email</th><th>Phone</th><th>Current Balance</th><th>Actions</th></tr>' +
+      '      </thead>' +
+      '      <tbody id="customersBody">' +
+      '        <tr><td colspan="5" class="empty-message text-center">No customers yet. Click "Add Customer" to create one.</td></tr>' +
+      '      </tbody>' +
+      '    </table>' +
+      '  </div>' +
+      '</div>' +
+
+      '<!-- Add Customer Modal -->' +
+      '<div class="modal-overlay" id="customerModal">' +
+      '  <div class="modal">' +
+      '    <div class="modal-header">' +
+      '      <h3>Add Customer</h3>' +
+      '      <button class="close-btn" onclick="closeModal(\'customerModal\')">&times;</button>' +
+      '    </div>' +
+      '    <form onsubmit="saveCustomer(event)">' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Name</label><input type="text" id="custName" required placeholder="Customer name"></div>' +
+      '        <div class="form-group"><label>Phone</label><input type="text" id="custPhone" placeholder="+92 3xx xxxxxxx"></div>' +
+      '      </div>' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Email</label><input type="email" id="custEmail" placeholder="customer@email.com"></div>' +
+      '        <div class="form-group"><label>Opening Balance</label><input type="number" id="custBalance" value="0" step="0.01"></div>' +
+      '      </div>' +
+      '      <div class="modal-actions">' +
+      '        <button type="button" class="btn btn-secondary" onclick="closeModal(\'customerModal\')">Cancel</button>' +
+      '        <button type="submit" class="btn btn-primary">Save Customer</button>' +
+      '      </div>' +
+      '    </form>' +
+      '  </div>' +
+      '</div>';
+
+    renderLayoutWith({ title: 'Customers', subtitle: 'Manage your project dashboard and performance', active: 'customers' }, bodyHtml);
+
+    // Customers CRUD (localStorage)
+    var CUSTOMERS_KEY = 'erp_customers';
+    function getCustomers() {
+      try { return JSON.parse(localStorage.getItem(CUSTOMERS_KEY)) || []; } catch (e) { return []; }
+    }
+    function saveCustomers(list) { localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(list)); }
+
+    function renderCustomers() {
+      var list = getCustomers();
+      var tbody = document.getElementById('customersBody');
+      if (!tbody) return;
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-message text-center">No customers yet. Click "Add Customer" to create one.</td></tr>';
+        return;
+      }
+      var html = '';
+      list.forEach(function (c, i) {
+        html += '<tr>' +
+          '<td>' + escapeHtml(c.name) + '</td>' +
+          '<td>' + escapeHtml(c.email || '—') + '</td>' +
+          '<td>' + escapeHtml(c.phone || '—') + '</td>' +
+          '<td class="amount">' + formatMoney(c.balance) + '</td>' +
+          '<td>' +
+          '  <div class="action-buttons d-flex gap-2">' +
+          '    <button class="btn-icon" title="Edit" onclick="editCustomer(' + i + ')" data-icon="edit"></button>' +
+          '    <button class="btn-icon danger" title="Delete" onclick="deleteCustomer(' + i + ')" data-icon="trash"></button>' +
+          '  </div>' +
+          '</td>' +
+          '</tr>';
+      });
+      tbody.innerHTML = html;
+      injectIcons(tbody);
+    }
+
+    window.saveCustomer = function (e) {
+      e.preventDefault();
+      var list = getCustomers();
+      list.push({
+        name: document.getElementById('custName').value.trim(),
+        phone: document.getElementById('custPhone').value.trim(),
+        email: document.getElementById('custEmail').value.trim(),
+        balance: parseFloat(document.getElementById('custBalance').value) || 0
+      });
+      saveCustomers(list);
+      closeModal('customerModal');
+      renderCustomers();
+      showToast('Customer added successfully!');
+    };
+
+    window.deleteCustomer = function (i) {
+      var list = getCustomers();
+      list.splice(i, 1);
+      saveCustomers(list);
+      renderCustomers();
+      showToast('Customer deleted.', 'error');
+    };
+
+    window.editCustomer = function (i) {
+      var list = getCustomers();
+      var c = list[i];
+      if (!c) return;
+      document.getElementById('custName').value = c.name;
+      document.getElementById('custPhone').value = c.phone || '';
+      document.getElementById('custEmail').value = c.email || '';
+      document.getElementById('custBalance').value = c.balance;
+      // For simplicity, reuse modal - could be improved
+      openModal('customerModal');
+    };
+
+    function escapeHtml(str) {
+      var div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    renderCustomers();
+  </script>
+</body>
+</html>

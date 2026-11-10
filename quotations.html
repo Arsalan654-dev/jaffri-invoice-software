@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quotations | Demo ERP</title>
+  <link rel="icon" type="image/svg+xml" href="vite.svg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    requireAuth();
+
+    var bodyHtml =
+      '<div class="quotations-page">' +
+      '  <div class="page-header">' +
+      '    <h2>Quotations</h2>' +
+      '    <button class="btn btn-primary" data-icon="plus" onclick="openModal(\'qtnModal\')"><span>Create Quotation</span></button>' +
+      '  </div>' +
+      '  <div class="table-container">' +
+      '    <table class="data-table">' +
+      '      <thead>' +
+      '        <tr><th>QTN #</th><th>Customer</th><th>Date</th><th>Expires</th><th>Total</th><th>Status</th><th>Actions</th></tr>' +
+      '      </thead>' +
+      '      <tbody id="qtnsBody">' +
+      '        <tr><td colspan="7" class="empty-message text-center">No quotations yet. Click "Create Quotation" to create one.</td></tr>' +
+      '      </tbody>' +
+      '    </table>' +
+      '  </div>' +
+      '</div>' +
+
+      '<!-- Create Quotation Modal -->' +
+      '<div class="modal-overlay" id="qtnModal">' +
+      '  <div class="modal">' +
+      '    <div class="modal-header">' +
+      '      <h3>Create Quotation</h3>' +
+      '      <button class="close-btn" onclick="closeModal(\'qtnModal\')">&times;</button>' +
+      '    </div>' +
+      '    <form onsubmit="saveQtn(event)">' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Customer</label>' +
+      '          <select id="qtnCustomer"><option value="">-- Select Customer --</option></select>' +
+      '        </div>' +
+      '        <div class="form-group"><label>Quotation Date</label><input type="date" id="qtnDate"></div>' +
+      '      </div>' +
+      '      <div class="form-row">' +
+      '        <div class="form-group"><label>Expiry Date</label><input type="date" id="qtnExpiry"></div>' +
+      '        <div class="form-group"><label>Total Amount</label><input type="number" id="qtnTotal" value="0" step="0.01"></div>' +
+      '      </div>' +
+      '      <div class="form-group"><label>Notes</label><textarea id="qtnNotes" rows="3" placeholder="Optional notes..."></textarea></div>' +
+      '      <div class="modal-actions">' +
+      '        <button type="button" class="btn btn-secondary" onclick="closeModal(\'qtnModal\')">Cancel</button>' +
+      '        <button type="submit" class="btn btn-primary">Create Quotation</button>' +
+      '      </div>' +
+      '    </form>' +
+      '  </div>' +
+      '</div>';
+
+    renderLayoutWith({ title: 'Quotations', subtitle: 'Manage your project dashboard and performance', active: 'quotations' }, bodyHtml);
+
+    var QTN_KEY = 'erp_quotations';
+    function getQtns() {
+      try { return JSON.parse(localStorage.getItem(QTN_KEY)) || []; } catch (e) { return []; }
+    }
+    function saveQtns(list) { localStorage.setItem(QTN_KEY, JSON.stringify(list)); }
+
+    function loadCustomers() {
+      var sel = document.getElementById('qtnCustomer');
+      if (!sel) return;
+      var customers = [];
+      try { customers = JSON.parse(localStorage.getItem('erp_customers')) || []; } catch (e) {}
+      var html = '<option value="">-- Select Customer --</option>';
+      customers.forEach(function (c) { html += '<option value="' + c.name + '">' + c.name + '</option>'; });
+      sel.innerHTML = html;
+    }
+
+    function renderQtns() {
+      var list = getQtns();
+      var tbody = document.getElementById('qtnsBody');
+      if (!tbody) return;
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-message text-center">No quotations yet. Click "Create Quotation" to create one.</td></tr>';
+        return;
+      }
+      var html = '';
+      list.forEach(function (q, i) {
+        html += '<tr>' +
+          '<td class="font-bold">' + q.number + '</td>' +
+          '<td>' + q.customer + '</td>' +
+          '<td>' + q.date + '</td>' +
+          '<td>' + q.expiry + '</td>' +
+          '<td class="amount">' + formatMoney(q.total) + '</td>' +
+          '<td><span class="status-badge pending">' + q.status + '</span></td>' +
+          '<td>' +
+          '  <div class="action-buttons d-flex gap-2">' +
+          '    <button class="btn-icon" title="Convert to Invoice" onclick="convertToInvoice(' + i + ')" data-icon="plus"></button>' +
+          '    <button class="btn-icon danger" title="Delete" onclick="deleteQtn(' + i + ')" data-icon="trash"></button>' +
+          '  </div>' +
+          '</td>' +
+          '</tr>';
+      });
+      tbody.innerHTML = html;
+      injectIcons(tbody);
+    }
+
+    window.saveQtn = function (e) {
+      e.preventDefault();
+      var customer = document.getElementById('qtnCustomer').value;
+      if (!customer) {
+        showToast('Please select a customer.', 'error');
+        return;
+      }
+      var today = new Date().toISOString().split('T')[0];
+      var list = getQtns();
+      var number = 'QTN-' + String(list.length + 1).padStart(3, '0');
+      list.push({
+        number: number,
+        customer: customer,
+        date: document.getElementById('qtnDate').value || today,
+        expiry: document.getElementById('qtnExpiry').value || today,
+        total: parseFloat(document.getElementById('qtnTotal').value) || 0,
+        status: 'pending',
+        notes: document.getElementById('qtnNotes').value
+      });
+      saveQtns(list);
+      closeModal('qtnModal');
+      renderQtns();
+      showToast('Quotation ' + number + ' created!');
+    };
+
+    window.deleteQtn = function (i) {
+      var list = getQtns();
+      list.splice(i, 1);
+      saveQtns(list);
+      renderQtns();
+      showToast('Quotation deleted.', 'error');
+    };
+
+    window.convertToInvoice = function (i) {
+      var list = getQtns();
+      var q = list[i];
+      if (!q) return;
+      showToast('Quotation ' + q.number + ' converted to invoice!');
+    };
+
+    loadCustomers();
+    renderQtns();
+  </script>
+</body>
+</html>
