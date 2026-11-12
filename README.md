@@ -1,4 +1,4 @@
-# Demo ERP - Static Mirror (Bootstrap 5)
+# Jaffri Invoice Software - Static Mirror (Bootstrap 5)
 
 Frontend mirror of `demoyourtechhub.netlify.app` - a React Accounting/ERP demo, rebuilt with plain HTML, CSS, JavaScript and Bootstrap 5.
 

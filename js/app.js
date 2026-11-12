@@ -1,4 +1,4 @@
-/* ===== Demo ERP Mirror - Shared JS ===== */
+/* ===== Jaffri Invoice Software Mirror - Shared JS ===== */
 
 // ===== Session / Auth (localStorage based like the original demo) =====
 const AUTH_KEY = 'erp_mirror_auth';
@@ -216,7 +216,7 @@ function renderLayout(config) {
     '<aside class="sidebar">' +
     '  <button class="sidebar-close-btn" data-icon="x"></button>' +
     '  <div class="sidebar-header">' +
-    '    <div class="logo-container"><h1 class="sidebar-logo-text" style="color: white; font-size: 1.5rem; font-weight: bold;">Demo ERP</h1></div>' +
+    '    <div class="logo-container"><img src="images/jaffri-invoice-logo-light.png" alt="Jaffri Invoice Software" style="max-width:100%;max-height:56px;display:block;margin:0 auto;"></div>' +
     '  </div>' +
     '  <nav class="sidebar-nav">' + navHtml + '</nav>' +
     '  <div class="sidebar-footer">' +
@@ -254,7 +254,7 @@ function renderLayout(config) {
     '  <div class="content" id="pageContent"></div>' +
     '  <footer class="app-footer">' +
     '    <span>Created By</span>' +
-    '    <a class="footer-brand" href="https://wa.me/923352352689" target="_blank">Yourtechhub</a>' +
+    '    <a class="footer-brand" href="https://wa.me/923352352689" target="_blank">Jaffri Invoice Software</a>' +
     '    <span class="footer-sep">·</span>' +
     '    <a class="footer-phone" href="tel:+923352352689">+92 335 2352689</a>' +
     '  </footer>' +

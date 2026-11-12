@@ -1,4 +1,4 @@
-/* ===== Print/PDF helper for Demo ERP mirror ===== */
+/* ===== Print/PDF helper for Jaffri Invoice Software mirror ===== */
 // Opens a print-friendly view and triggers browser print -> "Save as PDF"
 
 function printReport(title, tableHtml, summaryRows) {
@@ -30,11 +30,11 @@ function printReport(title, tableHtml, summaryRows) {
     '@media print{body{padding:20px}}' +
     '</style></head><body>' +
     '<div class="header">' +
-    '  <div><div class="brand">Demo ERP</div><h1>' + title + '</h1><div class="sub">Generated: ' + new Date().toLocaleString() + '</div></div>' +
+    '  <div><div class="brand">Jaffri Invoice Software</div><h1>' + title + '</h1><div class="sub">Generated: ' + new Date().toLocaleString() + '</div></div>' +
     '</div>' +
     (summaryHtml ? '<div class="summary">' + summaryHtml + '</div>' : '') +
     tableHtml +
-    '<div class="footer"><span>Demo ERP - Yourtechhub</span><span>+92 335 2352689</span></div>' +
+    '<div class="footer"><span>Jaffri Invoice Software - Jaffri Invoice Software</span><span>+92 335 2352689</span></div>' +
     '</body></html>'
   );
   w.document.close();
@@ -83,11 +83,11 @@ function printInvoicePDF(inv) {
     '.footer{margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:.75rem;color:#64748b;display:flex;justify-content:space-between}' +
     '@media print{body{padding:20px}}' +
     '</style></head><body>' +
-    '<div class="top"><div class="brand">Demo ERP</div><div class="inv-num"><h1>' + (inv.type === 'receivable' ? 'INVOICE' : 'BILL') + '</h1><p>' + inv.number + '</p><p>Date: ' + inv.date + '</p><p>Due: ' + inv.dueDate + '</p></div></div>' +
+    '<div class="top"><div class="brand">Jaffri Invoice Software</div><div class="inv-num"><h1>' + (inv.type === 'receivable' ? 'INVOICE' : 'BILL') + '</h1><p>' + inv.number + '</p><p>Date: ' + inv.date + '</p><p>Due: ' + inv.dueDate + '</p></div></div>' +
     '<div class="meta"><div><label>Party</label><span>' + escapeHtml(inv.party) + '</span></div><div><label>Status</label><span class="status ' + inv.status + '">' + inv.status + '</span></div><div><label>Payment</label><span>' + inv.method + '</span></div></div>' +
     table +
     (inv.notes ? '<div class="notes"><strong>Notes:</strong> ' + escapeHtml(inv.notes) + '</div>' : '') +
-    '<div class="footer"><span>Demo ERP - Yourtechhub</span><span>+92 335 2352689</span></div>' +
+    '<div class="footer"><span>Jaffri Invoice Software - Jaffri Invoice Software</span><span>+92 335 2352689</span></div>' +
     '</body></html>'
   );
   w.document.close();
