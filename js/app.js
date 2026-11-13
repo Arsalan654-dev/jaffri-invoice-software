@@ -14,14 +14,14 @@ function requireAuth() {
 }
 
 function doLogin(email, password) {
-  // Mirror of the demo: admin@example.com / 11111111
-  if (email === 'admin@example.com' && password === '11111111') {
-    localStorage.setItem(AUTH_KEY, 'true');
-    localStorage.setItem('erp_user_email', email);
-    window.location.hash = '#/';
-    return true;
+  if (!email || !password) {
+    return false;
   }
-  return false;
+
+  localStorage.setItem(AUTH_KEY, 'true');
+  localStorage.setItem('erp_user_email', email);
+  window.location.hash = '#/';
+  return true;
 }
 
 function doLogout() {
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Avatar initial
   const avatars = document.querySelectorAll('.user-avatar');
-  const email = localStorage.getItem('erp_user_email') || 'admin@example.com';
+  const email = localStorage.getItem('erp_user_email') || 'demo@jaffri-invoice.test';
   avatars.forEach(function (a) {
     a.textContent = email.charAt(0).toUpperCase();
   });
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // ===== Render sidebar user info =====
 function renderUserInfo() {
-  const email = localStorage.getItem('erp_user_email') || 'admin@example.com';
+  const email = localStorage.getItem('erp_user_email') || 'demo@jaffri-invoice.test';
 }
 
 // ===== Modal helpers =====
@@ -204,7 +204,7 @@ const NAV_ITEMS = [
 
 function renderLayout(config) {
   // config: { title, subtitle, active }
-  const email = localStorage.getItem('erp_user_email') || 'admin@example.com';
+  const email = localStorage.getItem('erp_user_email') || 'demo@jaffri-invoice.test';
   const activePage = config.active || 'dashboard';
 
   const navHtml = NAV_ITEMS.map(function (item) {

@@ -20,7 +20,7 @@
         <div id="loginError" class="error-message" style="display:none"></div>
         <div class="form-group">
           <label for="email">Email</label>
-          <input type="email" id="email" placeholder="admin@example.com" required>
+          <input type="email" id="email" placeholder="you@company.com" required>
         </div>
         <div class="form-group">
           <label for="password">Password</label>
@@ -30,7 +30,6 @@
       </form>
       <div class="login-footer">
         <button class="btn-link" type="button" onclick="signUpAsDemo()">Don't have an account? Sign Up</button>
-        <div class="demo-credentials">Demo: admin@example.com / password</div>
       </div>
     </div>
   </div>
@@ -40,7 +39,8 @@
   <script>
     // Sign Up logs in as demo admin (matches original demo behavior)
     function signUpAsDemo() {
-      doLogin('admin@example.com', '11111111');
+      localStorage.setItem('erp_mirror_auth', 'true');
+      localStorage.setItem('erp_user_email', 'demo@jaffri-invoice.test');
       window.location.href = 'dashboard.html';
     }
     document.getElementById('loginForm').addEventListener('submit', function (e) {
@@ -56,7 +56,7 @@
       if (doLogin(email, password)) {
         window.location.href = 'dashboard.html';
       } else {
-        errEl.textContent = 'Invalid credentials. Use admin@example.com / 11111111';
+        errEl.textContent = 'Invalid credentials. Please try again.';
         errEl.style.display = 'block';
       }
     });

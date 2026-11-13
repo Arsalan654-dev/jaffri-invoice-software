@@ -1,6 +1,6 @@
 # Jaffri Invoice Software - Static Mirror (Bootstrap 5)
 
-Frontend mirror of `demoyourtechhub.netlify.app` - a React Accounting/ERP demo, rebuilt with plain HTML, CSS, JavaScript and Bootstrap 5.
+A static accounting and ERP demo built with plain HTML, CSS, JavaScript and Bootstrap 5.
 
 ## Pages
 
@@ -19,10 +19,9 @@ Frontend mirror of `demoyourtechhub.netlify.app` - a React Accounting/ERP demo, 
 | Party Ledger | `party-ledger.html` |
 | Reports | `reports.html` |
 
-## Demo Credentials
+## Demo access
 
-- **Email:** `admin@example.com`
-- **Password:** `11111111`
+This static mirror uses client-side demo authentication. Enter any non-empty email and password to open the dashboard. No real credentials are stored or verified.
 
 ## Structure
 
