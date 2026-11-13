@@ -11,3 +11,6 @@ dist/
 .agents/
 .playwright-mcp/
 .phpunit.result.cache
+
+.vercel
+.env*
