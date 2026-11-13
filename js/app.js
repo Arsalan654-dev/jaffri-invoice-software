@@ -216,7 +216,7 @@ function renderLayout(config) {
     '<aside class="sidebar">' +
     '  <button class="sidebar-close-btn" data-icon="x"></button>' +
     '  <div class="sidebar-header">' +
-    '    <div class="logo-container"><img src="images/jaffri-invoice-logo-light.png" alt="Jaffri Invoice Software" style="max-width:100%;max-height:56px;display:block;margin:0 auto;"></div>' +
+    '    <div class="logo-container"><img src="images/jaffri-invoice-logo.png" alt="Jaffri Invoice Software" style="max-width:100%;max-height:56px;display:block;margin:0 auto;"></div>' +
     '  </div>' +
     '  <nav class="sidebar-nav">' + navHtml + '</nav>' +
     '  <div class="sidebar-footer">' +
