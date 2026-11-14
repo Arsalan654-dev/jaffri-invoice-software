@@ -37,7 +37,7 @@
 <body>
     <div class="header">
         <div class="brand">
-            <h1>Demo ERP</h1>
+            <h1>Jaffri Invoice Software</h1>
             <p>Your's Tech Hub &mdash; {{ $title }}</p>
         </div>
         <div class="meta">
@@ -107,7 +107,7 @@
     @endif
 
     <div class="footer">
-        Created By Yourtechhub &middot; {{ now()->format('M d, Y h:i A') }}
+        Created By Jaffri Invoice Software &middot; {{ now()->format('M d, Y h:i A') }}
     </div>
 </body>
 </html>

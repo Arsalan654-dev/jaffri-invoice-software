@@ -23,7 +23,7 @@ class ErpCrudTest extends TestCase
         $this->app['config']->set('database.connections.mysql.database', 'yours_tech_hub');
         $this->app['config']->set('database.connections.mysql.username', 'root');
         $this->app['config']->set('database.connections.mysql.password', '');
-        $this->admin = User::where('email', 'admin@yourstechhub.com')->first();
+        $this->admin = User::where('email', 'admin@example.com')->first();
     }
 
     public function test_customer_crud(): void

@@ -1,7 +1,7 @@
-# Laravel Backend Plan - Demo ERP Mirror
+# Laravel Backend Plan - Jaffri Invoice Software
 
 ## Project Overview
-Build a complete Laravel 13 REST API backend for the Demo ERP frontend mirror at `d:\yourstechhub`. The backend will replace localStorage with persistent SQLite database and provide all CRUD + reporting functionality via API endpoints.
+Build a complete Laravel 13 REST API backend for the Jaffri Invoice Software frontend mirror at `D:\jaffri-invoice-software`. The backend will replace localStorage with persistent SQLite database and provide all CRUD + reporting functionality via API endpoints.
 
 ## Frontend Features to Backend Mapping
 

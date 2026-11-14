@@ -53,4 +53,4 @@ Open `index.html` directly in a browser, or serve locally:
 npx serve .
 ```
 
-Login with demo credentials to access all pages. Data is persisted in `localStorage` just like the demo.
+Sign in with any non-empty email and password to access all pages. Data is persisted in `localStorage` just like the demo.

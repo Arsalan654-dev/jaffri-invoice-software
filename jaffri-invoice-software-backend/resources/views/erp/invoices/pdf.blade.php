@@ -50,7 +50,7 @@
 <div class="page">
     <div class="header">
         <div class="brand">
-            <h1>Demo ERP</h1>
+            <h1>Jaffri Invoice Software</h1>
             <p>Your's Tech Hub &mdash; Invoice Document</p>
         </div>
         <div class="invoice-meta">
@@ -64,7 +64,7 @@
         <div class="party">
             <div class="party-box">
                 <h3>From</h3>
-                <div class="name">Demo ERP</div>
+                <div class="name">Jaffri Invoice Software</div>
                 <p>Your's Tech Hub</p>
                 <p>+92 335 2352689</p>
             </div>
@@ -174,7 +174,7 @@
     @endif
 
     <div class="footer">
-        Created By Yourtechhub &middot; {{ now()->format('M d, Y h:i A') }}
+        Created By Jaffri Invoice Software &middot; {{ now()->format('M d, Y h:i A') }}
     </div>
 </div>
 </body>

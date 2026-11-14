@@ -14,7 +14,7 @@ class ErpFlowTest extends TestCase
         $this->app['config']->set('database.connections.mysql.username', 'root');
         $this->app['config']->set('database.connections.mysql.password', '');
 
-        $admin = User::where('email', 'admin@yourstechhub.com')->first();
+        $admin = User::where('email', 'admin@example.com')->first();
         $this->assertNotNull($admin, 'Admin user not found');
 
         $pages = [

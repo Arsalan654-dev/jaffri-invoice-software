@@ -12,6 +12,12 @@ class ErpUserSeeder extends Seeder
 {
     public function run(): void
     {
+        $seedPassword = env('ERP_SEED_PASSWORD');
+
+        if (! is_string($seedPassword) || $seedPassword === '') {
+            throw new \RuntimeException('Set ERP_SEED_PASSWORD in the environment before seeding ERP users.');
+        }
+
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
         DB::statement('DELETE FROM user_permissions');
         DB::statement('DELETE FROM role_users');
@@ -20,8 +26,8 @@ class ErpUserSeeder extends Seeder
         $users = [
             [
                 'name' => 'Admin User',
-                'email' => 'admin@yourstechhub.com',
-                'password' => Hash::make('password'),
+                'email' => 'admin@example.com',
+                'password' => Hash::make($seedPassword),
                 'role' => 'super_admin',
                 'department' => 'Administration',
                 'designation' => 'System Administrator',
@@ -30,8 +36,8 @@ class ErpUserSeeder extends Seeder
             ],
             [
                 'name' => 'Finance User',
-                'email' => 'finance@yourstechhub.com',
-                'password' => Hash::make('password'),
+                'email' => 'finance@example.com',
+                'password' => Hash::make($seedPassword),
                 'role' => 'finance',
                 'department' => 'Finance',
                 'designation' => 'Finance Manager',
@@ -40,8 +46,8 @@ class ErpUserSeeder extends Seeder
             ],
             [
                 'name' => 'Sales User',
-                'email' => 'sales@yourstechhub.com',
-                'password' => Hash::make('password'),
+                'email' => 'sales@example.com',
+                'password' => Hash::make($seedPassword),
                 'role' => 'sales',
                 'department' => 'Sales',
                 'designation' => 'Sales Executive',
@@ -50,8 +56,8 @@ class ErpUserSeeder extends Seeder
             ],
             [
                 'name' => 'Staff User',
-                'email' => 'staff@yourstechhub.com',
-                'password' => Hash::make('password'),
+                'email' => 'staff@example.com',
+                'password' => Hash::make($seedPassword),
                 'role' => 'staff',
                 'department' => 'Operations',
                 'designation' => 'Staff Member',

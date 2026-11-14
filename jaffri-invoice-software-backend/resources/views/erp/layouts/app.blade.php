@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Demo ERP')</title>
+    <title>@yield('title', 'Jaffri Invoice Software')</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
             <button class="sidebar-close-btn" id="sidebarCloseBtn" data-icon="x"></button>
             <div class="sidebar-header">
                 <div class="logo-container">
-                    <h1 class="sidebar-logo-text" style="color: white; font-size: 1.5rem; font-weight: bold;">Demo ERP</h1>
+                    <h1 class="sidebar-logo-text" style="color: white; font-size: 1.5rem; font-weight: bold;">Jaffri Invoice Software</h1>
                 </div>
             </div>
             <nav class="sidebar-nav">
@@ -32,7 +32,7 @@
                 <div class="user-info">
                     <div class="user-avatar">{{ strtoupper(substr(auth()->user()->name ?? 'A', 0, 1)) }}</div>
                     <div style="min-width:0">
-                        <div class="user-email">{{ auth()->user()->email ?? 'admin@yourstechhub.com' }}</div>
+                        <div class="user-email">{{ auth()->user()->email ?? 'admin@example.com' }}</div>
                         <div class="user-role">{{ auth()->user()->roles->pluck('name')->join(', ') ?: 'User' }}</div>
                     </div>
                 </div>
@@ -85,7 +85,7 @@
 
             <footer class="app-footer">
                 <span>Created By</span>
-                <a class="footer-brand" href="https://wa.me/923352352689" target="_blank">Yourtechhub</a>
+                <a class="footer-brand" href="https://wa.me/923352352689" target="_blank">Jaffri Invoice Software</a>
                 <span class="footer-sep">&middot;</span>
                 <a class="footer-phone" href="tel:+923352352689">+92 335 2352689</a>
             </footer>

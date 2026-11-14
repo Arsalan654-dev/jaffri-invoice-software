@@ -16,7 +16,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>Demo ERP</h1>
+        <h1>Jaffri Invoice Software</h1>
         <p>Accounts Receivable Aging</p>
         <p>Generated: {{ now()->format('M d, Y h:i A') }}</p>
     </div>
@@ -42,6 +42,6 @@
         </tbody>
     </table>
 
-    <div class="footer">Created By Yourtechhub</div>
+    <div class="footer">Created By Jaffri Invoice Software</div>
 </body>
 </html>

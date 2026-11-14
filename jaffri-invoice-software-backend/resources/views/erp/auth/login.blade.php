@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Demo ERP</title>
+    <title>Login - Jaffri Invoice Software</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -33,7 +33,7 @@
                 @csrf
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email" value="{{ old('email') }}" placeholder="admin@yourstechhub.com" required autofocus>
+                    <input type="email" id="email" name="email" value="{{ old('email') }}" placeholder="you@example.com" required autofocus>
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
@@ -50,7 +50,7 @@
             </form>
 
             <div class="login-footer">
-                <div class="demo-credentials">Demo: admin@yourstechhub.com / password</div>
+                <div>Contact your administrator for account access.</div>
             </div>
         </div>
     </div>

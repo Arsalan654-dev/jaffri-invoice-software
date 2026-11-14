@@ -1,4 +1,4 @@
-/* ===== Demo ERP - Shared JS (Icons + Modals + Toasts) ===== */
+/* ===== Jaffri Invoice Software - Shared JS (Icons + Modals + Toasts) ===== */
 
 // ===== Toast helper =====
 function showToast(message, type = 'success') {

@@ -1,4 +1,4 @@
-/* ===== Demo ERP - Mirror Styles (Bootstrap 5 + Custom) ===== */
+/* ===== Jaffri Invoice Software - Mirror Styles (Bootstrap 5 + Custom) ===== */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
@@ -581,15 +581,6 @@ body {
 .login-footer { margin-top: 32px; text-align: center; display: flex; flex-direction: column; gap: 16px; }
 .btn-link { background: none; border: none; color: var(--text-muted); font-size: .9375rem; font-weight: 600; cursor: pointer; transition: color .2s; }
 .btn-link:hover { color: var(--primary); }
-.demo-credentials {
-  color: var(--text-muted);
-  font-size: .875rem;
-  padding: 12px;
-  background: var(--bg-main);
-  border-radius: 12px;
-  border: 1px dashed var(--border);
-}
-
 /* ===== Dashboard ===== */
 .dashboard { display: flex; flex-direction: column; gap: 32px; }
 .welcome-section {

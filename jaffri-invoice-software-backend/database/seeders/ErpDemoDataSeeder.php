@@ -24,7 +24,7 @@ class ErpDemoDataSeeder extends Seeder
 
     public function run(): void
     {
-        $this->adminUser = User::where('email', 'admin@yourstechhub.com')->first();
+        $this->adminUser = User::where('email', 'admin@example.com')->first();
 
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
         LedgerEntry::query()->forceDelete();
